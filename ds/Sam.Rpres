@@ -1,0 +1,308 @@
+Sayam Khatri
+========================================================
+Exploratory Analysis and Regression - Automobile Data
+
+
+
+
+About the data set
+===========================================================
+This data set is from the Univerisity of California Irvine Machine Learning Repository The data was compiled by Jeffrey C. Schlimmer from the following sources:
+
+1985 Model Import Car and Truck Specifications, 1985 Ward's Automotive Yearbook.
+Personal Auto Manuals, Insurance Services Office, 160 Water Street, New York, NY 10038
+Insurance Collision Report, Insurance Institute for Highway Safety, Watergate 600, Washington, DC 20037
+
+
+
+===================================================
+
+This data set consists of three types of entities:
+
+1. The specification of an auto in terms of various characteristics
+
+2. Tts assigned insurance risk rating. This corresponds to the degree to which the auto is more risky than its price indicates. Cars are initially assigned a risk factor symbol associated with its price. Then, if it is more risky (or less), this symbol is adjusted by moving it up (or down) the scale. Actuaries call this process "symboling".
+
+3. Its normalized losses in use as compared to other cars. This is the relative average loss payment per insured vehicle year. This value is normalized for all autos within a particular size classification (two-door small, station wagons, sports/speciality, etc...), and represents the average loss per car per year.
+
+
+
+Objective
+====================================================
+
+The aim here is to explore the data set and find basic relationships of different features with an automobile's price. We will be starting with some brief exploratory analysis involving summary statistics and graphical visualization. We will also be conducting a few tests of hypotheses on the study variable price. We also want to see if there is a way to predict the price of the automobiles given all the information we have. We will be comparing a few different regression models to find the best one.
+
+
+
+Let's get started.The function shown in the cell below loads the data from the .csv file. Some minimal clean up is performed on the data.
+========================================================
+
+```{r}
+read.auto <- function(file ='./Automobile_data.csv')
+{
+  
+  auto.price <- read.csv(file, header = TRUE, stringsAsFactors = FALSE)
+  numcols <- c('price', 'bore', 'stroke', 'horsepower', 'peak.rpm')
+  auto.price[, numcols] <- lapply(auto.price[, numcols], as.numeric)
+  auto.price[complete.cases(auto.price), ]
+}
+auto.data <- read.auto()
+```
+
+Showing Data.The dataset has 195 observations with 26 different variables.
+========================================================
+
+```{r}
+str(auto.data)
+```
+
+Let's remove the 'Symboling' and 'normalized losses' columns as these were introduced for insurance risk assessment purposes and are not meaningful to this study.
+========================================================
+
+```{r}
+
+auto.sub <- dplyr::select(auto.data, -symboling, -normalized.losses)
+head(auto.sub)
+```
+
+
+
+Summary statistics
+=============================================
+
+We can learn a lot about a data set by looking at statistical summaries. The most common ones are Mean & Standard Deviation. The mean is a measure of central tendency and is defined as:
+
+mean=??=1n??ixi
+ 
+The standard deviation is a measure of the dispersion of a distribution defined as:
+
+sd=??=sqrt(11???n??i(?????xi)2
+ 
+Let's look at the summaries for the numeric attributes of the data set on the next slide:
+
+
+
+
+Summary statistics
+========================================================
+```{r}
+auto.numeric <- auto.sub[,c('wheel.base','length','width','height','curb.weight','engine.size','bore','stroke','compression.ratio','horsepower','peak.rpm','city.mpg','highway.mpg', 'price')]
+
+summary(auto.numeric)
+
+cat('\nStandard deviations are as follows:\n')
+lapply(auto.numeric, sd)
+```
+
+
+Frequency tables
+========================================================
+```{r}
+table(auto.sub$make, auto.sub$fuel.type, auto.sub$aspiration)
+```
+
+
+Covariance and Correlation
+===============================================================
+```{r}
+cov(auto.numeric)
+```
+
+
+=============================================================
+```{r}
+R <- cor(auto.numeric, method = 'pearson')
+R
+```
+
+=============================================================
+The correlation matrix is a bit easier to understand, since the values are normalized. The diagonal values of the correlation matrix are all 1.0, as a result of the normalization. The magnitudes of the correlation values between the variables range between -1.0 and +1.0. A magnitude closer to +1.0 or -1.0 indicates a high correlation.
+
+Some pairs of variables are weakly correlated, with small magnitudes. For example, wheel base and horsepower are weakly correlated, whereas engine size and curb weight are strongly correlated.
+
+
+Data Visualization
+==============================================================
+```{r}
+require(ellipse)
+#Correlation Plot
+plotcorr(R, col = colorRampPalette(c("firebrick3", "white", "navy"))(10))
+```
+
+===============================================================
+In the above plot, the length of the minor axis is computed as  1 (minus) correlation . 
+A correlation of 1 gives a line, with the minor axis set to 0. Correlation of zero results in a circle. The intensity of the color used on the plot indicates the magnitude of the correlation. Additionally, orientation of the ellipse is used to highlight the positive or negative correlation value.
+For positive correlation the ellipse tilts right, with the opposite being true for negative correlation.
+
+================================================================
+```{r}
+#Scatter Plots
+require(ggplot2)
+require(gridExtra)
+Plot1 <- ggplot(auto.sub, aes(x = price, y = horsepower)) + geom_point() + 
+    xlab('Price') + ylab('Horsepower') + 
+    ggtitle('Relationship btwn Price & Horsepower') +
+    theme(plot.title = element_text(size = 6.5, face = "bold"))
+Plot2 <- ggplot(auto.sub, aes(x = price, y = wheel.base)) + geom_point() + 
+    xlab('Price') + ylab('Wheel Base') + 
+    ggtitle('Relationship btwn Price & Wheel Base')+
+    theme(plot.title = element_text(size = 6.5, face = "bold"))
+Plot3 <- ggplot(auto.sub, aes(x = price, y = length)) + geom_point() + 
+    xlab('Price') + ylab('Length') + 
+    ggtitle('Relationship btwn Price & Car Length')+
+    theme(plot.title = element_text(size = 6.5, face = "bold"))
+Plot4 <- ggplot(auto.sub, aes(x = price, y = width)) + geom_point() + 
+    xlab('Price') + ylab('Width') + 
+    ggtitle('Relationship btwn Price & Car Width') +
+    theme(plot.title = element_text(size = 6.5, face = "bold"))
+Plot5 <- ggplot(auto.sub, aes(x = price, y = height)) + geom_point() + 
+    xlab('Price') + ylab('Height') + 
+    ggtitle('Relationship btwn Price & Car Height') +
+    theme(plot.title = element_text(size = 6.5, face = "bold"))
+Plot6 <- ggplot(auto.sub, aes(x = price, y = curb.weight)) + geom_point() + 
+    xlab('Price') + ylab('curb.weight') + 
+    ggtitle('Relationship btwn Price & curb.weight') +
+    theme(plot.title = element_text(size = 6.5, face = "bold"))
+Plot7 <- ggplot(auto.sub, aes(x = price, y = engine.size)) + geom_point() + 
+    xlab('Price') + ylab('engine.size') + 
+    ggtitle('Relationship btwn Price & engine.size') +
+    theme(plot.title = element_text(size = 6.5, face = "bold"))
+Plot8 <- ggplot(auto.sub, aes(x = price, y = bore)) + geom_point() + 
+    xlab('Price') + ylab('bore') + 
+    ggtitle('Relationship btwn Price & bore') +
+    theme(plot.title = element_text(size = 6.5, face = "bold"))
+Plot9 <- ggplot(auto.sub, aes(x = price, y = stroke)) + geom_point() + 
+    xlab('Price') + ylab('stroke') + 
+    ggtitle('Relationship btwn Price & stroke') +
+    theme(plot.title = element_text(size = 6.5, face = "bold"))
+Plot10 <- ggplot(auto.sub, aes(x = price, y = compression.ratio)) + geom_point() + 
+    xlab('Price') + ylab('compression.ratio') + 
+    ggtitle('Relationship btwn Price & compression.ratio') +
+    theme(plot.title = element_text(size = 6.5, face = "bold"))
+Plot11 <- ggplot(auto.sub, aes(x = price, y = peak.rpm)) + geom_point() + 
+    xlab('Price') + ylab('peak.rpm') + 
+    ggtitle('Relationship btwn Price & peak.rpm') +
+    theme(plot.title = element_text(size = 6.5, face = "bold"))
+Plot12 <- ggplot(auto.sub, aes(x = price, y = city.mpg)) + geom_point() + 
+    xlab('Price') + ylab('city.mpg') + 
+    ggtitle('Relationship btwn Price & city.mpg') +
+    theme(plot.title = element_text(size = 6.5, face = "bold"))
+Plot13 <- ggplot(auto.sub, aes(x = price, y = highway.mpg)) + geom_point() + 
+    xlab('Price') + ylab('highway.mpg') + 
+    ggtitle('Relationship between Price and highway.mpg')
+
+grid.arrange(Plot1, Plot2, Plot3, Plot4, Plot5, Plot6, Plot7, Plot8, Plot9, Plot10, Plot11, Plot12, ncol = 3)
+Plot13
+```
+
+
+=======================================================
+```{r}
+require(car)
+require(repr)
+options(repr.plot.width=9, repr.plot.height=9)
+scatterplotMatrix(~ wheel.base + horsepower + length + width + price, data = auto.sub)
+scatterplotMatrix(~ height + curb.weight + engine.size + bore + price, data = auto.sub)
+scatterplotMatrix(~ stroke + compression.ratio + peak.rpm + city.mpg + highway.mpg + price, data = auto.sub)
+```
+=======================================================
+Now that we have done some basic exploration and visualization of our data, let's proceed with some exploratory tests of hypotheses. We will test the following:
+
+Test if price or log(price) follows normal distribution
+
+Test for significance of price/log(price) stratified by:
+
+a. Fuel type (diesel Vs gas)
+
+b. Aspiration (Turbo Vs Standard)
+
+Apply ANOVA & Tukey's HSD to compare the price (log(price)) of autos stratified by Body Style
+
+
+
+==========================================================
+
+Hypothesis Tests
+A statistical hypothesis, sometimes called confirmatory data analysis, is a hypothesis that is testable on the basis of observing a process that is modeled via a set of random variables. A statistical hypothesis test is a method of statistical inference. Commonly, two statistical data sets are compared, or a data set obtained by sampling is compared against a synthetic data set from an idealized model. A hypothesis is proposed for the statistical relationship between the two data sets, and this is compared as an alternative to an idealized null hypothesis that proposes no relationship between two data sets. The comparison is deemed statistically significant if the relationship between the data sets would be an unlikely realization of the null hypothesis according to a threshold probability-the significance level. Hypothesis tests are used in determining what outcomes of a study would lead to a rejection of the null hypothesis for a pre-specified level of significance.
+
+
+Testing distributions
+=============================================================
+```{r}
+#Q1: Compare & test normality of the distribution of price & log(price). Use both graphical method and a formal test
+
+sampleA <- auto.sub$price
+
+
+m <- mean(sampleA)
+s <- sd(sampleA)
+cat(paste('Mean of auto price = ', as.character(round(m,2)),', variance = ', as.character(round(s^2,2)),', 
+            standard deviation = ', as.character(round(s,2))))
+sampleB <- rnorm(195, mean = m, sd = s)
+
+sampleLogA <- log(auto.sub$price)
+
+
+lm <- mean(sampleLogA)
+ls <- sd(sampleLogA)
+cat(paste('\nMean of logarithm of auto price = ', as.character(round(lm,2)),', variance = ', as.character(round(ls^2,2)),', 
+         standard deviation = ', as.character(round(ls,2))))
+sampleNormB <- rnorm(195, mean = lm, sd = ls)
+
+#Plot the density curve of the price variable
+Plot1 <- ggplot(auto.sub, aes(price)) + geom_density()
+
+#Plot the density curve of the log(price) variable
+Plot2 <- ggplot(auto.sub, aes(log(price))) + geom_density()
+
+grid.arrange(Plot1, Plot2, ncol = 2)
+```
+==============================================================
+
+Examine these plots. Notice that the distribution is heavily skewed to the left or low side. This confirms our conclusions from looking at the summary statistics above. At first glance, these do not appear to have a normal bell shaped distribution.
+
+Q-Q Plot
+=================================================================
+```{r}
+options(repr.plot.width=8, repr.plot.height=4)
+
+par(mfrow=c(1,2))
+#Q-Q plot of price
+qqnorm(sampleA, main = 'Q-Q plot of price'); qqline(sampleA, col = 2)
+#Q-Q plot of log(price)
+qqnorm(sampleLogA, main = 'Q-Q plot of log(price)'); qqline(sampleLogA, col = 2)
+par(mfrow=c(1,1))
+```
+
+The Kolmogorov-Smirnov test for distributions
+==================================================================
+```{r}
+x_seq <- seq(-10000,40000,len=195)
+y_cdf1 <- sapply(x_seq, function(x){sum(sampleA<x)/195})#cdf of price
+y_cdf2 <- sapply(x_seq, function(x){sum(sampleB<x)/195})#cdf of normal distribution N(13248.02, 8056.33)
+
+#Kolmogorov-Smirnov test statistic
+k_s_stat <- max(abs(y_cdf1 - y_cdf2))
+cat(paste('Kolmogorov-Smirnov Statistic = ', as.character(k_s_stat)))
+
+options(repr.plot.width=8, repr.plot.height=4)
+par(mfrow=c(1,2))
+#Plot the cumulative distribution function of price Vs random sample from N(13248.02, 8056.33)
+plot(ecdf(sampleA), col='blue', main ='CDFs of samples', xlab = 'Value', ylab = 'Cumulative density')
+lines(ecdf(sampleB), col='red')
+
+#Where does the KS statistic occur on the graph?
+k_index <- which.max(abs(y_cdf1-y_cdf2))
+k_s_x <- x_seq[k_index]
+plot(x_seq,y_cdf1, col='blue', pch=16, main ='CDFs of samples',xlab = 'Value', ylab = 'Cumulative density')
+points(x_seq,y_cdf2,col='red', pch=16) 
+lines(c(k_s_x,k_s_x), c(y_cdf1[k_index],y_cdf2[k_index]), col='black', lwd=8)
+par(mfrow=c(1,1))
+```
+
+=========================================================
+
+All the topics are further explained in the documentation.
+
+
+
